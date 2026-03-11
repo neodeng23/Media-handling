@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Rename media files whose names contain Chinese characters to numeric names.
+脚本说明：将文件名中包含中文的媒体文件重命名为连续编号。
 
-Examples:
-  python rename_chinese_media.py "D:\\media"
-  python rename_chinese_media.py "D:\\media" --prefix travel
-  python rename_chinese_media.py "D:\\media" --prefix travel --delay 0.6
-  python rename_chinese_media.py "\\\\nas\\share\\album" --recursive
+示例：
+  python rename_chinese_media_to_sequence.py "D:\\media"
+  python rename_chinese_media_to_sequence.py "D:\\media" --prefix travel
+  python rename_chinese_media_to_sequence.py "D:\\media" --prefix travel --delay 0.6
+  python rename_chinese_media_to_sequence.py "\\\\nas\\share\\album" --recursive
 """
 
 from __future__ import annotations

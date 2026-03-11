@@ -1,3 +1,5 @@
+"""脚本说明：接收多个源文件路径，并在固定目标目录中创建软链接。"""
+
 import os
 import sys
 import ctypes
@@ -13,8 +15,8 @@ def is_admin():
 
 def main():
     if len(sys.argv) < 2:
-        print("用法: python mklink_simple.py <源文件路径1> [源文件路径2] ...")
-        print("示例: python mklink_simple.py \"W:\Video\A.mp4\" \"W:\Video\B.mkv\"")
+        print("用法: python create_symlinks_to_fixed_target.py <源文件路径1> [源文件路径2] ...")
+        print("示例: python create_symlinks_to_fixed_target.py \"W:\\Video\\A.mp4\" \"W:\\Video\\B.mkv\"")
         sys.exit(1)
 
     if not is_admin():

@@ -1,0 +1,9 @@
+# One rule per line.
+# Rules are removed from filename stem edges (prefix or suffix), case-insensitive.
+# Blank lines and lines starting with # are ignored.
+
+489155.com@
+hhd800.com@
+hhd800.com@
+[FHD]
+

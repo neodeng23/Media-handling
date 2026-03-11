@@ -1,3 +1,5 @@
+"""脚本说明：删除指定目录下不包含任何视频文件的子目录（可多轮扫描）。"""
+
 import os
 import shutil
 import time

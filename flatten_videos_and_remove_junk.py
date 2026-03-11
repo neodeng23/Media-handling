@@ -1,3 +1,5 @@
+"""脚本说明：把子目录视频扁平化到根目录，并清理垃圾媒体与空目录。"""
+
 import os
 import re
 import shutil

@@ -1,3 +1,5 @@
+"""脚本说明：将根目录下一层文件夹中的子文件夹提升到根目录，并清理空父目录。"""
+
 import os
 import shutil
 from pathlib import Path
