@@ -50,7 +50,7 @@ MEDIA_EXTENSIONS = {
     ".tiff",
 }
 
-DEFAULT_TARGET_PATH = r"W:\P\new"
+DEFAULT_TARGET_PATH = r"W:\new"
 
 
 def parse_args() -> argparse.Namespace:
