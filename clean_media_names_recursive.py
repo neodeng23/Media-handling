@@ -1,4 +1,4 @@
-"""脚本说明：递归清洗媒体文件名，按规则文件删除文件名前后缀字符串。"""
+"""脚本说明：递归清洗媒体文件名，按配置文件删除文件名前后缀字符串。"""
 
 from __future__ import annotations
 
@@ -69,7 +69,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--rules",
         default=str(DEFAULT_RULES_FILE),
-        help=f"Rules file path (default: {DEFAULT_RULES_FILE})",
+        help=f"Cleanup config file path (default: {DEFAULT_RULES_FILE})",
     )
     parser.add_argument(
         "--top-only",
@@ -122,7 +122,12 @@ def main() -> int:
         print(f"[Error] Invalid directory: {root}")
         return 2
 
-    rules_file, tokens = load_cleanup_tokens(args.rules)
+    try:
+        rules_file, tokens = load_cleanup_tokens(args.rules)
+    except ValueError as exc:
+        print(f"[Error] {exc}")
+        return 2
+
     if not tokens:
         print(f"[Error] No cleanup tokens loaded from: {rules_file}")
         return 2
@@ -140,7 +145,7 @@ def main() -> int:
 
     print(f"[Info] Root: {root}")
     print(f"[Info] Recursive: {recursive}")
-    print(f"[Info] Rules file: {rules_file}")
+    print(f"[Info] Cleanup config: {rules_file}")
     print(f"[Info] Loaded rules: {len(tokens)}")
     print(f"[Info] Media files found: {len(media_files)}\n")
 

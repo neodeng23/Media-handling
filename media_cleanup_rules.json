@@ -1,0 +1,31 @@
+{
+  "name_cleanup_tokens": [
+    "489155.com@",
+    "hhd800.com@",
+    "[FHD]",
+    "HD中英双字[最新电影www.5266ys.com]",
+    "HD中英双字[最新电影www.dygangs.me]",
+    "4k2.me@"
+  ],
+  "junk_name_keywords": [
+    "x u u 6 2 . c o m",
+    "台湾uu美少女直播 20年信誉保证服务全球",
+    "社 區 最 新 情 報",
+    "18+游戏大全(996gg.cc)-七龍珠H版-三國志H版-三國群淫傳等",
+    "三 上 悠 亚 想 要 跟 你 决 胜 负"
+  ],
+  "junk_files": {
+    "exact_names": [
+      ".DS_Store",
+      "Thumbs.db",
+      "desktop.ini"
+    ],
+    "name_keywords": [],
+    "extensions": [
+      ".nfo",
+      ".sfv",
+      ".url",
+      ".torrent"
+    ]
+  }
+}

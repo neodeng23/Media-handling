@@ -1,4 +1,4 @@
-"""脚本说明：仅处理指定目录顶层的视频文件，按规则文件清洗文件名。"""
+"""脚本说明：仅处理指定目录顶层的视频文件，按配置文件清洗文件名。"""
 
 from __future__ import annotations
 
@@ -65,7 +65,12 @@ def rename_files_in_root(root_dir: str, rules_file: str | None = None):
         print(f"[Error] Not a directory: {root}")
         return
 
-    resolved_rules_file, tokens = load_cleanup_tokens(rules_file)
+    try:
+        resolved_rules_file, tokens = load_cleanup_tokens(rules_file)
+    except ValueError as exc:
+        print(f"[Error] {exc}")
+        return
+
     if not tokens:
         print(f"[Error] No cleanup tokens found in: {resolved_rules_file}")
         return
@@ -75,7 +80,7 @@ def rename_files_in_root(root_dir: str, rules_file: str | None = None):
     failed_count = 0
 
     print(f"[Info] Start directory: {root}")
-    print(f"[Info] Rules file: {resolved_rules_file}")
+    print(f"[Info] Cleanup config: {resolved_rules_file}")
     print(f"[Info] Loaded rules: {len(tokens)}\n")
 
     for item in root.iterdir():
@@ -122,6 +127,6 @@ def rename_files_in_root(root_dir: str, rules_file: str | None = None):
 if __name__ == "__main__":
     folder_path = input("Input directory path: ").strip().strip('"')
     rules_path = input(
-        f"Rules file path (enter for default: {DEFAULT_RULES_FILE}): "
+        f"Cleanup config path (enter for default: {DEFAULT_RULES_FILE}): "
     ).strip().strip('"')
     rename_files_in_root(folder_path, rules_path or None)

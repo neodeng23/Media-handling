@@ -1,9 +1,0 @@
-# One rule per line.
-# Rules are removed from filename stem edges (prefix or suffix), case-insensitive.
-# Blank lines and lines starting with # are ignored.
-
-489155.com@
-hhd800.com@
-[FHD]
-HD中英双字[最新电影www.5266ys.com]
-HD中英双字[最新电影www.dygangs.me]

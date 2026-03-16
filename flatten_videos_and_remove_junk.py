@@ -1,10 +1,18 @@
 """脚本说明：把子目录视频扁平化到根目录，并清理垃圾媒体与空目录。"""
 
 import os
-import re
 import shutil
 import time
 from pathlib import Path
+
+from media_name_cleanup_common import (
+    is_garbage_file,
+    is_garbage_file_by_name,
+    load_cleanup_config,
+    normalize_path_str,
+)
+
+DEFAULT_ROOT_DIR = r"W:\new"
 
 # 可按需增减视频扩展名
 VIDEO_EXTENSIONS = {
@@ -12,71 +20,11 @@ VIDEO_EXTENSIONS = {
     ".ts", ".mts", ".m2ts", ".webm", ".rmvb", ".rm", ".3gp"
 }
 
-# =========================
-# 不需要移动、直接删除的垃圾媒体关键字
-# 规则：
-# 1) 这里只匹配“文件名”，不看路径
-# 2) 会自动忽略大小写、空格、以及结尾的 (1) (2) 这种重复编号
-# 3) 你后续只需要往这里继续加
-# =========================
-GARBAGE_MEDIA_KEYWORDS = [
-    "x u u 6 2 . c o m",
-    "台湾uu美少女直播 20年信誉保证服务全球",
-    "社 區 最 新 情 報",
-    "18+游戏大全(996gg.cc)-七龍珠H版-三國志H版-三國群淫傳等",
-]
-
-# 如果你还想按更泛的域名/广告词去命中，也可以继续加
-# 比如：
-# "996gg.cc",
-# "uu美少女直播",
-# "最新地址获取",
-# 但泛匹配越多，误删风险越高
-
-
-def normalize_path_str(path: Path) -> str:
-    return os.path.normcase(os.path.normpath(str(path)))
-
-
 def is_video_file(file_path: Path) -> bool:
     try:
         return file_path.is_file() and file_path.suffix.lower() in VIDEO_EXTENSIONS
     except Exception:
         return False
-
-
-def normalize_media_name_for_match(name: str) -> str:
-    """
-    用于匹配垃圾媒体文件名：
-    - 转小写
-    - 去掉扩展名
-    - 去掉末尾的 (1) (2) (3) ...
-    - 去掉所有空白字符
-    """
-    stem = Path(name).stem.lower()
-
-    # 去掉末尾重复编号，例如 xxx(1) / xxx(2)
-    stem = re.sub(r"\(\d+\)$", "", stem)
-
-    # 去掉所有空白字符
-    stem = re.sub(r"\s+", "", stem)
-
-    return stem
-
-
-def is_garbage_media_file(file_path: Path) -> bool:
-    """
-    判断一个视频文件是否属于“垃圾媒体”
-    命中后直接删除，不移动
-    """
-    normalized_name = normalize_media_name_for_match(file_path.name)
-
-    for keyword in GARBAGE_MEDIA_KEYWORDS:
-        normalized_keyword = normalize_media_name_for_match(keyword)
-        if normalized_keyword and normalized_keyword in normalized_name:
-            return True
-
-    return False
 
 
 def get_unique_target_path(target_path: Path) -> Path:
@@ -123,6 +71,67 @@ def collect_video_files(root: Path):
                 print(f"[跳过异常文件] {file_path}，原因: {e}")
 
     return video_files
+
+
+def collect_all_files_in_subdirs(root: Path):
+    """
+    收集根目录下所有子目录中的文件。
+    根目录自身的文件不处理。
+    """
+    file_list = []
+    root_norm = normalize_path_str(root)
+
+    for current_root, dirs, files in os.walk(str(root)):
+        current_path = Path(current_root)
+
+        if normalize_path_str(current_path) == root_norm:
+            continue
+
+        for file_name in files:
+            file_list.append(current_path / file_name)
+
+    return file_list
+
+
+def delete_garbage_files(root: Path, rules_file: Path, cleanup_config):
+    deleted_name_matched_count = 0
+    deleted_garbage_file_count = 0
+    failed_count = 0
+
+    all_files = collect_all_files_in_subdirs(root)
+    if not all_files:
+        print("[提示] 没有扫描到子目录文件，无需删除垃圾文件。")
+        return 0, 0, 0
+
+    print(f"[信息] 共扫描到 {len(all_files)} 个子目录文件。")
+    print(f"[信息] 垃圾规则配置: {rules_file}")
+    print(f"[信息] 垃圾文件名关键字: {len(cleanup_config.junk_name_keywords)}")
+    print(f"[信息] 垃圾文件规则: 名称 {len(cleanup_config.junk_files.exact_names)} / 关键字 {len(cleanup_config.junk_files.name_keywords)} / 扩展名 {len(cleanup_config.junk_files.extensions)}\n")
+
+    for src_file in all_files:
+        try:
+            if not src_file.exists():
+                print(f"[跳过] 文件已不存在: {src_file}")
+                continue
+
+            if is_garbage_file_by_name(src_file, cleanup_config.junk_name_keywords):
+                src_file.unlink()
+                deleted_name_matched_count += 1
+                print(f"[已删除关键字垃圾文件] {src_file}")
+                continue
+
+            if is_garbage_file(src_file, cleanup_config.junk_files):
+                src_file.unlink()
+                deleted_garbage_file_count += 1
+                print(f"[已删除垃圾文件] {src_file}")
+
+        except FileNotFoundError:
+            print(f"[跳过] 文件已不存在: {src_file}")
+        except Exception as e:
+            failed_count += 1
+            print(f"[删除垃圾文件失败] {src_file}，原因: {e}")
+
+    return deleted_name_matched_count, deleted_garbage_file_count, failed_count
 
 
 def try_list_dir_items(path: Path):
@@ -257,7 +266,7 @@ def remove_empty_dirs_with_retry(root: Path, max_rounds: int = 5, delay_sec: flo
     return total_removed, total_skipped_missing
 
 
-def move_all_videos_to_root(root_dir: str):
+def move_all_videos_to_root(root_dir: str, rules_file: str | Path | None = None):
     # 不使用 resolve()，避免 WebDAV / 映射盘报错
     root = Path(os.path.abspath(root_dir))
 
@@ -269,9 +278,23 @@ def move_all_videos_to_root(root_dir: str):
         print(f"[错误] 输入的不是文件夹: {root}")
         return
 
+    try:
+        resolved_rules_file, cleanup_config = load_cleanup_config(rules_file)
+    except ValueError as exc:
+        print(f"[错误] {exc}")
+        return
+
     moved_count = 0
-    deleted_garbage_count = 0
+    deleted_name_matched_count = 0
+    deleted_garbage_file_count = 0
     failed_count = 0
+
+    (
+        deleted_name_matched_count,
+        deleted_garbage_file_count,
+        delete_failed_count,
+    ) = delete_garbage_files(root, resolved_rules_file, cleanup_config)
+    failed_count += delete_failed_count
 
     video_files = collect_video_files(root)
 
@@ -286,17 +309,17 @@ def move_all_videos_to_root(root_dir: str):
                 print(f"[跳过] 文件已不存在: {src_file}")
                 continue
 
-            # 垃圾媒体：直接删除，不移动
-            if is_garbage_media_file(src_file):
+            # 关键字垃圾文件：直接删除，不移动
+            if is_garbage_file_by_name(src_file, cleanup_config.junk_name_keywords):
                 try:
                     src_file.unlink()
-                    deleted_garbage_count += 1
-                    print(f"[已删除垃圾媒体] {src_file}")
+                    deleted_name_matched_count += 1
+                    print(f"[已删除关键字垃圾文件] {src_file}")
                 except FileNotFoundError:
-                    print(f"[跳过] 垃圾媒体已不存在: {src_file}")
+                    print(f"[跳过] 关键字垃圾文件已不存在: {src_file}")
                 except Exception as e:
                     failed_count += 1
-                    print(f"[删除垃圾媒体失败] {src_file}，原因: {e}")
+                    print(f"[删除关键字垃圾文件失败] {src_file}，原因: {e}")
                 continue
 
             # 正常视频：移动到根目录
@@ -319,12 +342,18 @@ def move_all_videos_to_root(root_dir: str):
 
     print("\n=== 处理完成 ===")
     print(f"成功移动视频: {moved_count}")
-    print(f"已删除垃圾媒体: {deleted_garbage_count}")
+    print(f"已删除关键字垃圾文件: {deleted_name_matched_count}")
+    print(f"已删除垃圾文件: {deleted_garbage_file_count}")
     print(f"处理失败数量: {failed_count}")
     print(f"删除空文件夹: {removed_count}")
     print(f"跳过已不存在目录: {skipped_missing_count}")
 
 
 if __name__ == "__main__":
-    folder_path = input("请输入要处理的根路径: ").strip().strip('"')
+    folder_path = (
+        input(f"请输入要处理的根路径（直接回车使用默认路径: {DEFAULT_ROOT_DIR}）: ")
+        .strip()
+        .strip('"')
+        or DEFAULT_ROOT_DIR
+    )
     move_all_videos_to_root(folder_path)
