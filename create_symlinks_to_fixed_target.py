@@ -1,11 +1,17 @@
-"""脚本说明：接收多个源文件路径，并在固定目标目录中创建软链接。"""
+"""脚本说明：编辑脚本开头常量，在固定目标目录中为多个源文件创建软链接。"""
 
 import os
 import sys
 import ctypes
+import subprocess
 
 # 固定目标目录
 TARGET_DIR = r"F:\P\link"
+
+# 在这里填写需要创建软链接的源文件路径
+SOURCE_PATHS = [
+    r"W:\P\J\kin8\kin8-3449-4K.mp4",
+]
 
 def is_admin():
     try:
@@ -13,15 +19,32 @@ def is_admin():
     except:
         return False
 
+def relaunch_as_admin():
+    script_path = os.path.abspath(sys.argv[0])
+    cmdline = subprocess.list2cmdline([script_path])
+    result = ctypes.windll.shell32.ShellExecuteW(
+        None,
+        "runas",
+        sys.executable,
+        cmdline,
+        os.getcwd(),
+        1,
+    )
+    return result > 32
+
 def main():
-    if len(sys.argv) < 2:
-        print("用法: python create_symlinks_to_fixed_target.py <源文件路径1> [源文件路径2] ...")
-        print("示例: python create_symlinks_to_fixed_target.py \"W:\\Video\\A.mp4\" \"W:\\Video\\B.mkv\"")
+    if not SOURCE_PATHS:
+        print("错误: SOURCE_PATHS 为空，请先在脚本开头填写至少一个源文件路径。")
         sys.exit(1)
 
     if not is_admin():
-        print("警告: 未以管理员身份运行，创建符号链接可能会失败。")
-        print("请尝试右键终端/脚本 -> '以管理员身份运行'。")
+        print("检测到当前不是管理员权限，正在请求 UAC 提权...")
+        if relaunch_as_admin():
+            print("已发起管理员重启请求，请在弹出的 UAC 窗口中确认。")
+            sys.exit(0)
+
+        print("错误: 未能获取管理员权限，已取消执行。")
+        sys.exit(1)
 
     # 确保目标目录存在
     if not os.path.exists(TARGET_DIR):
@@ -33,7 +56,7 @@ def main():
             sys.exit(1)
 
     success_count = 0
-    for source_path in sys.argv[1:]:
+    for source_path in SOURCE_PATHS:
         source_path = os.path.abspath(source_path) # 转为绝对路径
         
         if not os.path.exists(source_path):
@@ -54,7 +77,7 @@ def main():
         except OSError as e:
             print(f"失败: {filename} - {e}")
 
-    print(f"\n完成。成功创建: {success_count}/{len(sys.argv)-1}")
+    print(f"\n完成。成功创建: {success_count}/{len(SOURCE_PATHS)}")
 
 if __name__ == "__main__":
     main()
