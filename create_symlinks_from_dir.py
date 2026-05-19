@@ -1,48 +1,22 @@
-"""脚本说明：递归扫描目录下的媒体文件，并在目标目录批量创建软链接。"""
+"""脚本说明：从源目录递归扫描媒体文件，在目标目录批量创建软链接。"""
 
-import ctypes
 import os
 import sys
 from pathlib import Path
 
+from media_common import (
+    MEDIA_EXTENSIONS,
+    is_admin,
+    is_media_file,
+    normalize_path_str,
+)
+
 # Default link destination directory.
 TARGET_DIR = r"F:\P\link"
 
-MEDIA_EXTENSIONS = {
-    # Video
-    ".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".m4v",
-    ".ts", ".mts", ".m2ts", ".webm", ".rmvb", ".rm", ".3gp",
-    # Audio
-    ".mp3", ".flac", ".aac", ".wav", ".m4a", ".ogg", ".wma",
-    # Image
-    ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".heic", ".tif", ".tiff",
-}
-
-
-def is_admin():
-    try:
-        return bool(ctypes.windll.shell32.IsUserAnAdmin())
-    except Exception:
-        return False
-
-
-def normalize_path(path: Path) -> str:
-    return os.path.normcase(os.path.normpath(str(path)))
-
-
-def is_media_file(file_path: Path) -> bool:
-    try:
-        return (
-            file_path.is_file()
-            and not file_path.is_symlink()
-            and file_path.suffix.lower() in MEDIA_EXTENSIONS
-        )
-    except Exception:
-        return False
-
 
 def iter_media_files(source_dir: Path, target_dir: Path):
-    target_dir_norm = normalize_path(target_dir)
+    target_dir_norm = normalize_path_str(target_dir)
 
     for current_root, dirs, files in os.walk(str(source_dir)):
         current_root_path = Path(current_root)
@@ -50,16 +24,16 @@ def iter_media_files(source_dir: Path, target_dir: Path):
         # If target folder is inside source folder, skip walking into it.
         dirs[:] = [
             d for d in dirs
-            if normalize_path(current_root_path / d) != target_dir_norm
+            if normalize_path_str(current_root_path / d) != target_dir_norm
         ]
 
         # Defensive check in case current root resolves to target dir.
-        if normalize_path(current_root_path) == target_dir_norm:
+        if normalize_path_str(current_root_path) == target_dir_norm:
             continue
 
         for file_name in files:
             file_path = current_root_path / file_name
-            if is_media_file(file_path):
+            if is_media_file(file_path, skip_symlinks=True):
                 yield file_path
 
 
@@ -72,7 +46,7 @@ def is_same_symlink_target(link_path: Path, source_path: Path) -> bool:
         if not os.path.isabs(linked_target):
             linked_target = os.path.join(str(link_path.parent), linked_target)
 
-        return normalize_path(Path(linked_target)) == normalize_path(source_path)
+        return normalize_path_str(Path(linked_target)) == normalize_path_str(source_path)
     except Exception:
         return False
 

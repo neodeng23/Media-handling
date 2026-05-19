@@ -1,15 +1,58 @@
-"""脚本说明：提供媒体文件名清洗和垃圾文件识别的公共能力。"""
+"""脚本说明：媒体处理公共库 —— 扩展名/文件检测/路径工具/目录清理/垃圾识别/文件名清洗。"""
 
 from __future__ import annotations
 
 import json
 import os
 import re
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
 DEFAULT_RULES_FILE = Path(__file__).with_name("media_cleanup_rules.json")
+
+
+# ==================== 公共扩展名常量 ====================
+
+VIDEO_EXTENSIONS: set[str] = {
+    ".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".m4v",
+    ".ts", ".mts", ".m2ts", ".webm", ".rmvb", ".rm", ".3gp",
+}
+
+MEDIA_EXTENSIONS: set[str] = {
+    # Video
+    ".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".m4v",
+    ".ts", ".mts", ".m2ts", ".webm", ".rmvb", ".rm", ".3gp",
+    # Audio
+    ".mp3", ".flac", ".aac", ".wav", ".m4a", ".ogg", ".wma", ".opus",
+    # Image
+    ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".heic", ".heif", ".tif", ".tiff",
+}
+
+
+# ==================== 文件类型工具 ====================
+
+def is_media_file(
+    file_path: Path,
+    extensions: set[str] | None = None,
+    *,
+    skip_symlinks: bool = False,
+) -> bool:
+    try:
+        if skip_symlinks and file_path.is_symlink():
+            return False
+        exts = extensions if extensions is not None else MEDIA_EXTENSIONS
+        return file_path.is_file() and file_path.suffix.lower() in exts
+    except Exception:
+        return False
+
+
+def is_video_file(file_path: Path) -> bool:
+    return is_media_file(file_path, VIDEO_EXTENSIONS)
+
+
+# ==================== 路径 / 重命名工具 ====================
 
 
 @dataclass(frozen=True)
@@ -28,6 +71,161 @@ class CleanupConfig:
 
 def normalize_path_str(path: Path) -> str:
     return os.path.normcase(os.path.normpath(str(path)))
+
+
+def get_unique_target_path(
+    target_path: Path, *, new_stem: str | None = None
+) -> Path:
+    if new_stem is not None:
+        target = target_path.parent / f"{new_stem}{target_path.suffix}"
+    else:
+        target = target_path
+
+    if not target.exists():
+        return target
+
+    stem = target.stem
+    suffix = target.suffix
+    parent = target.parent
+
+    index = 1
+    while True:
+        candidate = parent / f"{stem}({index}){suffix}"
+        if not candidate.exists():
+            return candidate
+        index += 1
+
+
+# ==================== 系统 / 管理员工具 ====================
+
+def is_admin() -> bool:
+    try:
+        import ctypes
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except Exception:
+        return False
+
+
+# ==================== 目录扫描 / 删除工具 ====================
+
+def walk_error_handler(err: OSError) -> None:
+    print(f"[扫描目录失败] {err}")
+
+
+def try_list_dir_items(path: Path) -> list[str]:
+    try:
+        if not path.exists():
+            return ["<目录已不存在>"]
+        return [p.name for p in path.iterdir()]
+    except Exception as e:
+        return [f"<无法读取目录内容: {e}>"]
+
+
+def collect_all_dirs(root: Path) -> list[Path]:
+    dir_list: list[Path] = []
+    root_norm = normalize_path_str(root)
+
+    for current_root, dirs, _files in os.walk(
+        str(root), topdown=True, onerror=walk_error_handler
+    ):
+        current_path = Path(current_root)
+
+        if normalize_path_str(current_path) != root_norm:
+            dir_list.append(current_path)
+
+        for d in dirs:
+            subdir = current_path / d
+            if normalize_path_str(subdir) != root_norm:
+                dir_list.append(subdir)
+
+    unique_dirs: dict[str, Path] = {}
+    for d in dir_list:
+        unique_dirs[normalize_path_str(d)] = d
+
+    result = list(unique_dirs.values())
+    result.sort(key=lambda p: len(p.parts), reverse=True)
+    return result
+
+
+def remove_empty_dirs_once(root: Path) -> tuple[int, int]:
+    removed_count = 0
+    skipped_missing_count = 0
+    dir_list = collect_all_dirs(root)
+
+    print(f"[信息] 本轮扫描到目录数量: {len(dir_list)}")
+
+    if not dir_list:
+        print("[提示] 没有扫描到任何子目录。")
+        return 0, 0
+
+    for current_path in dir_list:
+        try:
+            if not current_path.exists():
+                skipped_missing_count += 1
+                print(f"[跳过已不存在目录] {current_path}")
+                continue
+
+            if not current_path.is_dir():
+                continue
+
+            try:
+                if current_path.is_symlink():
+                    print(f"[跳过符号链接目录] {current_path}")
+                    continue
+            except Exception:
+                pass
+
+            try:
+                current_path.rmdir()
+                removed_count += 1
+                print(f"[已删除空文件夹] {current_path}")
+            except FileNotFoundError:
+                skipped_missing_count += 1
+                print(f"[跳过已不存在目录] {current_path}")
+            except OSError as e:
+                items = try_list_dir_items(current_path)
+                print(f"[未删除] {current_path}，原因: {e}，目录内容: {items}")
+            except Exception as e:
+                items = try_list_dir_items(current_path)
+                print(f"[删除失败] {current_path}，原因: {e}，目录内容: {items}")
+
+        except Exception as e:
+            print(f"[处理目录异常] {current_path}，原因: {e}")
+
+    return removed_count, skipped_missing_count
+
+
+def remove_empty_dirs_with_retry(
+    root: Path, max_rounds: int = 5, delay_sec: float = 1.5
+) -> tuple[int, int]:
+    total_removed = 0
+    total_skipped_missing = 0
+
+    for round_index in range(1, max_rounds + 1):
+        print(f"\n[信息] 第 {round_index} 轮删除空文件夹开始...\n")
+        removed_this_round, skipped_missing_this_round = remove_empty_dirs_once(root)
+        total_removed += removed_this_round
+        total_skipped_missing += skipped_missing_this_round
+
+        print(
+            f"\n[信息] 第 {round_index} 轮删除完成，"
+            f"本轮删除: {removed_this_round}，跳过已不存在目录: {skipped_missing_this_round}"
+        )
+
+        if removed_this_round == 0:
+            if round_index < max_rounds:
+                print(f"[信息] 等待 {delay_sec} 秒后继续重试...\n")
+                time.sleep(delay_sec)
+            else:
+                break
+        else:
+            if round_index < max_rounds:
+                time.sleep(delay_sec)
+
+    return total_removed, total_skipped_missing
+
+
+# ==================== 配置 / 规则数据类 ====================
 
 
 def _ensure_list(path: Path, field_name: str, value: object) -> list[object]:

@@ -5,22 +5,12 @@ import shutil
 import time
 from pathlib import Path
 
-# 你可按需增减视频扩展名
-VIDEO_EXTENSIONS = {
-    ".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".m4v",
-    ".ts", ".mts", ".m2ts", ".webm", ".rmvb", ".rm", ".3gp"
-}
-
-
-def normalize_path_str(path: Path) -> str:
-    return os.path.normcase(os.path.normpath(str(path)))
-
-
-def is_video_file(file_path: Path) -> bool:
-    try:
-        return file_path.is_file() and file_path.suffix.lower() in VIDEO_EXTENSIONS
-    except Exception:
-        return False
+from media_common import (
+    VIDEO_EXTENSIONS,
+    collect_all_dirs,
+    is_video_file,
+    normalize_path_str,
+)
 
 
 def has_any_video_under(folder: Path) -> bool:
@@ -38,40 +28,6 @@ def has_any_video_under(folder: Path) -> bool:
         print(f"[检查失败] {folder}，原因: {e}")
         return True
         # 返回 True 是为了保守处理：检查异常时不删
-
-
-def collect_all_subdirs(root: Path):
-    """
-    收集 root 下所有子目录（不含 root 本身）
-    并按深度从深到浅排序
-    """
-    subdirs = []
-    root_norm = normalize_path_str(root)
-
-    try:
-        for current_root, dirs, files in os.walk(str(root), topdown=True):
-            current_path = Path(current_root)
-
-            if normalize_path_str(current_path) != root_norm:
-                subdirs.append(current_path)
-
-            for d in dirs:
-                subdir = current_path / d
-                if normalize_path_str(subdir) != root_norm:
-                    subdirs.append(subdir)
-    except Exception as e:
-        print(f"[扫描目录失败] {root}，原因: {e}")
-
-    # 去重
-    unique_map = {}
-    for d in subdirs:
-        unique_map[normalize_path_str(d)] = d
-
-    result = list(unique_map.values())
-
-    # 深层目录优先
-    result.sort(key=lambda p: len(p.parts), reverse=True)
-    return result
 
 
 def delete_dir_force(folder: Path) -> bool:
@@ -98,7 +54,7 @@ def remove_dirs_without_video(root: Path, max_rounds: int = 3, delay_sec: float 
     for round_index in range(1, max_rounds + 1):
         print(f"\n[信息] 第 {round_index} 轮开始扫描...\n")
 
-        subdirs = collect_all_subdirs(root)
+        subdirs = collect_all_dirs(root)
         print(f"[信息] 本轮扫描到目录数量: {len(subdirs)}")
 
         deleted_this_round = 0

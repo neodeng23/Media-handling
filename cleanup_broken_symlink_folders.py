@@ -1,19 +1,11 @@
-"""Clean broken symlink files under ROOT_DIR and optionally remove folders.
-
-Rules:
-1) Recursively scan ROOT_DIR and all subfolders.
-2) Only handle symlink files (not symlink directories).
-3) If a symlink target does not exist:
-   - If the same folder still has at least one valid symlink file, delete only the broken symlink file.
-   - Otherwise, delete the whole folder.
-
-The delete logic uses retry loops to better handle CloudDrive2/WebDAV-like mount delay.
-"""
+"""脚本说明：递归扫描 ROOT_DIR，清理目标失效的软链接文件；若文件夹内全部软链接失效则删除整个文件夹。"""
 
 import os
 import shutil
 import time
 from pathlib import Path
+
+from media_common import normalize_path_str
 
 # Root path to scan (as requested).
 ROOT_DIR = r"F:\P\emby_softlink\J"
@@ -21,10 +13,6 @@ ROOT_DIR = r"F:\P\emby_softlink\J"
 # Retry settings for CloudDrive2/WebDAV style paths.
 MAX_DELETE_RETRIES = 5
 RETRY_DELAY_SEC = 1.5
-
-
-def normalize_path_str(path: Path) -> str:
-    return os.path.normcase(os.path.normpath(str(path)))
 
 
 def is_existing_dir(path: Path) -> bool:

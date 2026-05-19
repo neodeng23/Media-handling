@@ -1,9 +1,10 @@
-"""脚本说明：编辑脚本开头常量，在固定目标目录中为多个源文件创建软链接。"""
+"""脚本说明：编辑 SOURCE_PATHS 列表指定源文件，在目标目录批量创建软链接。"""
 
 import os
 import sys
-import ctypes
 import subprocess
+
+from media_common import is_admin
 
 # 固定目标目录
 TARGET_DIR = r"F:\P\link"
@@ -12,12 +13,6 @@ TARGET_DIR = r"F:\P\link"
 SOURCE_PATHS = [
     r"W:\P\J\kin8\kin8-3449-4K.mp4",
 ]
-
-def is_admin():
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except:
-        return False
 
 def relaunch_as_admin():
     script_path = os.path.abspath(sys.argv[0])

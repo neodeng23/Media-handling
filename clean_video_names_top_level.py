@@ -5,53 +5,15 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from media_name_cleanup_common import (
+from media_common import (
     DEFAULT_RULES_FILE,
+    VIDEO_EXTENSIONS,
+    get_unique_target_path,
+    is_video_file,
     load_cleanup_tokens,
     normalize_path_str,
     strip_tokens_from_edges,
 )
-
-# Keep this script focused on video files, same as before.
-VIDEO_EXTENSIONS = {
-    ".mp4",
-    ".mkv",
-    ".avi",
-    ".mov",
-    ".wmv",
-    ".flv",
-    ".m4v",
-    ".ts",
-    ".mts",
-    ".m2ts",
-    ".webm",
-    ".rmvb",
-    ".rm",
-    ".3gp",
-}
-
-
-def is_video_file(file_path: Path) -> bool:
-    try:
-        return file_path.is_file() and file_path.suffix.lower() in VIDEO_EXTENSIONS
-    except Exception:
-        return False
-
-
-def get_unique_target_path(target_path: Path) -> Path:
-    if not target_path.exists():
-        return target_path
-
-    stem = target_path.stem
-    suffix = target_path.suffix
-    parent = target_path.parent
-
-    index = 1
-    while True:
-        new_path = parent / f"{stem}({index}){suffix}"
-        if not new_path.exists():
-            return new_path
-        index += 1
 
 
 def rename_files_in_root(root_dir: str, rules_file: str | None = None):

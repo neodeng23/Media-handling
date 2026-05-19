@@ -5,50 +5,15 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from media_name_cleanup_common import (
+from media_common import (
     DEFAULT_RULES_FILE,
+    MEDIA_EXTENSIONS,
+    get_unique_target_path,
+    is_media_file,
     load_cleanup_tokens,
     normalize_path_str,
     strip_tokens_from_edges,
 )
-
-MEDIA_EXTENSIONS = {
-    # Video
-    ".mp4",
-    ".mkv",
-    ".avi",
-    ".mov",
-    ".wmv",
-    ".flv",
-    ".m4v",
-    ".ts",
-    ".mts",
-    ".m2ts",
-    ".webm",
-    ".rmvb",
-    ".rm",
-    ".3gp",
-    # Audio
-    ".mp3",
-    ".flac",
-    ".aac",
-    ".wav",
-    ".m4a",
-    ".ogg",
-    ".wma",
-    ".opus",
-    # Image
-    ".jpg",
-    ".jpeg",
-    ".png",
-    ".gif",
-    ".bmp",
-    ".webp",
-    ".heic",
-    ".heif",
-    ".tif",
-    ".tiff",
-}
 
 DEFAULT_TARGET_PATH = r"W:\new"
 
@@ -84,34 +49,11 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def is_media_file(path: Path) -> bool:
-    try:
-        return path.is_file() and path.suffix.lower() in MEDIA_EXTENSIONS
-    except Exception:
-        return False
-
-
 def iter_media_files(root: Path, recursive: bool):
     entries = root.rglob("*") if recursive else root.iterdir()
     media_files = [p for p in entries if is_media_file(p)]
     media_files.sort(key=lambda p: str(p).lower())
     return media_files
-
-
-def get_unique_target_path(source: Path, new_stem: str) -> Path:
-    candidate = source.with_name(f"{new_stem}{source.suffix}")
-    if normalize_path_str(candidate) == normalize_path_str(source):
-        return source
-
-    if not candidate.exists():
-        return candidate
-
-    index = 1
-    while True:
-        candidate = source.with_name(f"{new_stem}({index}){source.suffix}")
-        if not candidate.exists():
-            return candidate
-        index += 1
 
 
 def main() -> int:
@@ -161,7 +103,7 @@ def main() -> int:
             print(f"[Fail] Empty name after cleanup: {src}")
             continue
 
-        dst = get_unique_target_path(src, new_stem)
+        dst = get_unique_target_path(src, new_stem=new_stem)
         if normalize_path_str(dst) == normalize_path_str(src):
             skipped_count += 1
             continue

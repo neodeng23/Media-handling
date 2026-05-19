@@ -17,6 +17,8 @@ import sys
 import time
 from pathlib import Path
 
+from media_common import is_media_file
+
 
 MEDIA_EXTENSIONS = {
     ".jpg",
@@ -76,10 +78,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def is_media_file(path: Path) -> bool:
-    return path.is_file() and path.suffix.lower() in MEDIA_EXTENSIONS
-
-
 def contains_chinese(text: str) -> bool:
     return CHINESE_RE.search(text) is not None
 
@@ -116,7 +114,7 @@ def main() -> int:
         return 2
 
     entries = root.rglob("*") if args.recursive else root.iterdir()
-    media_files = [p for p in entries if is_media_file(p)]
+    media_files = [p for p in entries if is_media_file(p, MEDIA_EXTENSIONS)]
 
     if not media_files:
         print("未找到媒体文件，无需处理。")
